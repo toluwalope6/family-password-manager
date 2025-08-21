@@ -1,3 +1,5 @@
+# family-password-manager
+
 1. Clone this repo:
 git clone https://github.com/<your-username>/family-password-manager.git
 cd family-password-manager
