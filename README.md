@@ -18,5 +18,3 @@ python run.py
 5. Open in browser
 Go to: http://127.0.0.1:5000
 
-You should see:
-Hello, Family Password Manager!

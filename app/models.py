@@ -1,6 +1,9 @@
 from flask_sqlalchemy import SQLAlchemy 
 from flask_login import UserMixin
 from datetime import datetime
+from cryptography.fernet import Fernet
+from flask import current_app
+import base64
 import bcrypt
 
 from . import db
@@ -17,6 +20,8 @@ class User(db.Model, UserMixin):
     created_at = db.Column(db.DateTime, default = datetime.utcnow)
     role = db.Column(db.String(50), default="guest")  # default role
 
+    
+
     def set_password(self, password):
         # convert password to bytes(convert password string to bytes)
         password_bytes = password.encode('utf-8')
@@ -31,7 +36,6 @@ class User(db.Model, UserMixin):
 
         print(f"Original password: {password}")
         print(f"Hashed password: {self.password_hash}")
-
 
     def check_password(self, password):
         """
@@ -52,3 +56,48 @@ class User(db.Model, UserMixin):
 
         return is_correct
 
+
+#  model for storing password 
+class PasswordEntry(db.Model):
+
+    __tablename__ = 'passwordentries'
+
+    # link to users
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable = False)
+
+    # account details
+    id = db.Column(db.Integer, primary_key = True)
+    service_name = db.Column(db.String(150), unique = False, nullable = False)
+    login_name = db.Column(db.String(150), unique = False, nullable = False) # login name to service example the email to the netflix account or the username 
+    url = db.Column(db.String(2048), unique = False, nullable = True)
+    created_at = db.Column(db.DateTime, default = datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default = datetime.utcnow)   
+    notes = db.Column(db.String(2048), unique = False, nullable = True)
+    encrypted_password = db.Column(db.Text, nullable = False)
+
+    def _get_key(self):
+        # Generate encryption key from Flask's SECRET_KEY
+        # Not the safest option but will suffice for now
+
+        secret_key = current_app.config['SECRET_KEY']
+        # convert to proper Fernet key format
+        key = base64.urlsafe_b64encode(secret_key.encode('utf-8').ljust(32)[:32])
+        return key
+
+    def set_password(self, plain_password):
+        # encrypyt plain password and store it in the database
+        key = self._get_key()
+        cipher = Fernet(key)
+
+        # encrypt password 
+        encrypted_password = cipher.encrypt(plain_password.encode('utf-8'))
+        self.encrypted_password = encrypted_password.decode('utf-8')
+
+    def get_password(self):
+        # decrypt the encrypted password
+        key = self._get_key()
+        cipher = Fernet(key)
+
+        # decrypt password
+        decrypted_password = cipher.decrypt(self.encrypted_password.encode('utf-8'))
+        return decrypted_password.decode('utf-8')
