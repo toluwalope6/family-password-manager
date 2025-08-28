@@ -432,3 +432,124 @@ def delete_password(entry_id):
             "error": "Delete failed",
             "message": "Something went wrong during the delete. Please try again."
         }), 500
+    
+# Sharing password route
+@bp.route('/passwords/<int:password_id>/share', methods=['POST'])
+@login_required
+def share_password(password_id):
+    try:
+        # finding the password entry
+        password_entry = PasswordEntry.query.filter_by(
+            id = password_id,
+            user_id = current_user.id
+        ).first()
+
+        if not password_entry:
+            return jsonify({
+                "error": "Password entry not found",
+                "message": "No password entry found with that ID, or you don't have permission to share"
+            }), 404
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "error": "No JSON data provided",
+                "message": "Please send data as JSON with 'share_with' field"
+            }), 400
+        
+        if 'share_with' not in data or not data['share_with']:
+            return jsonify({
+                "error": "Missing required field",
+                "message": "Please provide 'share_with' email address"
+            }), 400
+        
+        share_with_email = data['share_with'].strip().lower()
+
+        # finding target user
+        target_user = User.query.filter_by(email=share_with_email).first()
+        if not target_user:
+            return jsonify({
+                "error": "User not found",
+                "message": f"No user found with email: {share_with_email}"
+            }), 404
+        
+        # check if the user is trying to share password with themselves
+        if target_user.id == current_user.id:
+            return jsonify({
+                "error": "Invalid sharing target",
+                "message": "You cannot share a password with yourself"
+            }), 400
+        
+        # check if password is already been shared
+        if password_entry.is_shared_with(target_user):
+            return jsonify({
+                "error": "Already shared",
+                "message": f"This password is already shared with {target_user.email}"
+            }), 409
+
+        # Step 7: Add to sharing relationship
+        password_entry.shared_with.append(target_user)
+        db.session.commit()
+
+        # Return success response
+        return jsonify({
+            "message": "Password shared successfully!",
+            "shared_password": {
+                "id": password_entry.id,
+                "service_name": password_entry.service_name,
+                "login_name": password_entry.login_name,
+                "url": password_entry.url,
+                "notes": password_entry.notes
+            },
+            "shared_with": {
+                "email": target_user.email,
+                "username": target_user.username
+            },
+            "shared_at": datetime.utcnow().isoformat()
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"Share password error: {str(e)}")
+        return jsonify({
+            "error": "Sharing failed",
+            "message": "Something went wrong while sharing the password. Please try again."
+        }), 500
+    
+# getting all shared passwords with current user
+@bp.route('/passwords/shared', methods=['GET'])
+@login_required
+def get_shared_passwords():
+    try:
+        # Get passwords shared with current user (not owned by them)
+        shared_passwords = current_user.get_shared_passwords()
+
+        # Convert to JSON format
+        passwords_list = []
+        for password in shared_passwords:
+            passwords_list.append({
+                "id": password.id,
+                "service_name": password.service_name,
+                "login_name": password.login_name,
+                "url": password.url,
+                "notes": password.notes,
+                "created_at": password.created_at.isoformat(),
+                "updated_at": password.updated_at.isoformat(),
+                "owner": {
+                    "username": password.owner.username,
+                    "email": password.owner.email
+                },
+                "access_type": "shared"  # Indicates this is shared, not owned
+            })
+
+        return jsonify({
+            "message": f"Found {len(passwords_list)} shared passwords",
+            "shared_passwords": passwords_list,
+            "total_count": len(passwords_list)
+        }), 200
+
+    except Exception as e:
+        print(f"Get shared passwords error: {str(e)}")
+        return jsonify({
+            "error": "Failed to retrieve shared passwords",
+            "message": "Something went wrong while getting shared passwords. Please try again."
+        }), 500

@@ -20,7 +20,7 @@ class User(db.Model, UserMixin):
     created_at = db.Column(db.DateTime, default = datetime.utcnow)
     role = db.Column(db.String(50), default="guest")  # default role
 
-    
+    owned_passwords = db.relationship('PasswordEntry', backref='owner', lazy = True, foreign_keys = 'PasswordEntry.user_id')
 
     def set_password(self, password):
         # convert password to bytes(convert password string to bytes)
@@ -55,7 +55,20 @@ class User(db.Model, UserMixin):
         print(f"Password is correct: {is_correct}")
 
         return is_correct
-
+    
+    def get_shared_passwords(self): # getting all the password shared with the user NOP OWNED BY THEM
+        return PasswordEntry.query.join(shared_passwords).filter(
+            shared_passwords.c.user_id == self.id,
+            PasswordEntry.user_id != self.id
+        ).all()
+    
+# Association table for sharing passwords
+shared_passwords = db.Table('shared_passwords',
+    db.Column('password_id', db.Integer, db.ForeignKey('passwordentries.id'), primary_key= True),
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id'),primary_key = True),
+    db.Column('shared_at', db.DateTime, default=datetime.utcnow),
+    db.Column('can_edit', db.Boolean, default = False) #This is for future updates
+)
 
 #  model for storing password 
 class PasswordEntry(db.Model):
@@ -75,6 +88,13 @@ class PasswordEntry(db.Model):
     notes = db.Column(db.String(2048), unique = False, nullable = True)
     encrypted_password = db.Column(db.Text, nullable = False)
 
+
+    # for sharing passwords
+    shared_with = db.relationship('User',
+        secondary = shared_passwords, 
+        backref = db.backref('shared_passwords', lazy = 'dynamic'),
+        lazy = 'dynamic'                             
+    )
     def _get_key(self):
         # Generate encryption key from Flask's SECRET_KEY
         # Not the safest option but will suffice for now
@@ -101,3 +121,15 @@ class PasswordEntry(db.Model):
         # decrypt password
         decrypted_password = cipher.decrypt(self.encrypted_password.encode('utf-8'))
         return decrypted_password.decode('utf-8')
+    
+    def is_owner(self,user): # this is to check if the user owns this password
+        return self.user_id == user.id
+    
+    def is_accessible_by(self, user): # This is tocheck if the userr has access to the password
+        if self.is_owner(user):
+            return True
+        return self.shared_with.filter_by(id = user.id).first() is not None
+    
+    def is_shared_with(self,user): # this checks if a password is shared with a specific user
+        return self.shared_with.filter_by(id = user.id).first() is not None
+
