@@ -2,9 +2,19 @@ from flask import Blueprint, request, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from datetime import datetime
 from . import db
-from .models import User, PasswordEntry
+from .models import User, PasswordEntry, AccessLog
 
 bp = Blueprint("routes", __name__)
+
+# This is to add logs when a password is accessed
+def log_password_access(user, password_entry):
+        
+        access_log = AccessLog(
+            user_id = user.id,
+            password_id = password_entry.id
+        )
+        db.session.add(access_log)
+        db.session.commit()
 
 #  register route
 @bp.route("/register", methods=["POST"])
@@ -487,7 +497,7 @@ def share_password(password_id):
                 "message": f"This password is already shared with {target_user.email}"
             }), 409
 
-        # Step 7: Add to sharing relationship
+        #  Add to sharing relationship
         password_entry.shared_with.append(target_user)
         db.session.commit()
 
@@ -552,4 +562,80 @@ def get_shared_passwords():
         return jsonify({
             "error": "Failed to retrieve shared passwords",
             "message": "Something went wrong while getting shared passwords. Please try again."
+        }), 500
+    
+# route to view password
+@bp.route('/passwords/<int:entry_id>/view', methods=['GET'])
+@login_required
+def view_password(entry_id):
+    try:
+        #getting password entry
+        password_entry = PasswordEntry.query.get(entry_id)
+
+        if not password_entry:
+            return jsonify({
+                "error": "Password entry not found",
+                "message": "No password entry found with that ID"
+            }), 404
+        
+        # decrypting the actual password
+        actual_password = password_entry.get_password()
+
+        # logging here
+        log_password_access(current_user, password_entry)
+
+        # Determine acces type for response
+        is_owner = password_entry.is_owner(current_user)
+        access_type = "owner" if is_owner else "shared"
+
+        return jsonify({
+            "message": "Password retrieved successfully",
+            "password_entry":{
+                "id": password_entry.id,
+                "service_name": password_entry.service_name,
+                "login_name": password_entry.login_name,
+                "password": actual_password,  # The decrypted password
+                "url": password_entry.url,
+                "notes": password_entry.notes,
+                "access_type": access_type,
+                "owner": {
+                    "username": password_entry.owner.username,
+                    "email": password_entry.owner.email
+                } if not is_owner else None
+            }
+        }), 200
+
+    except Exception as e:
+        print(f"View password error: {str(e)}")
+        return jsonify({
+            "error": "Failed to retrieve password",
+            "message": "Something went wrong while retrieving the password. Please try again."
+        }), 500
+    
+#  route to view access logs
+@bp.route('/logs', methods=['GET'])
+@login_required
+def get_access_logs():
+    try:
+        # showing current users logs
+        logs = AccessLog.query.filter_by(user_id=current_user.id).all()
+
+        # conert to JSON
+        logs_list = []
+        for log in logs:
+            logs_list.append({
+                "id": log.id,
+                "password_service": log.password_entry.service_name,
+                "accessed_at": log.accessed_at.isoformat()
+            })
+
+            return jsonify({
+                "message": f"Found {len(logs_list)} access logs",
+                "logs": logs_list
+            }), 200
+    except Exception as e:
+        print(f"Get logs error: {str(e)}")
+        return jsonify({
+            "error": "Failed to retrieve logs",
+            "message": "Something went wrong while getting logs. Please try again."
         }), 500

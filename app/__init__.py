@@ -3,6 +3,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from dotenv import load_dotenv
+# from .import models
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -30,10 +31,28 @@ def create_app():
     from .routes import bp as routes_bp
     app.register_blueprint(routes_bp)
 
+   # Add debug prints
+    print("About to import models...")
+    from .models import User, PasswordEntry, AccessLog
+    print("Models imported successfully!")
+    print("User model:", User)
+    print("PasswordEntry model:", PasswordEntry) 
+    print("AccessLog model:", AccessLog)
+
     # Create tables if not exist
     with app.app_context():
+        print("Creating tables...")
+        print("Database URI:", app.config["SQLALCHEMY_DATABASE_URI"])
+        print("Database file path:", db.engine.url.database)
+        
         db.create_all()
         print("Database tables created/verified!")
+
+    # Check what was created
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        print("Actual tables in database:", tables)
 
     return app
 

@@ -12,11 +12,11 @@ if __name__ == '__main__':
         inspector = inspect(db.engine)
         tables = inspector.get_table_names()
         
-        if 'shared_passwords' in tables:
-            print("✅ shared_passwords table confirmed!")
+        if 'accesslogs' in tables:
+            print("✅ accesslogs table confirmed!")
             
             # Show columns to double-check
-            columns = inspector.get_columns('shared_passwords')
+            columns = inspector.get_columns('accesslogs')
             print("Columns:", [col['name'] for col in columns])
         else:
-            print("❌ shared_passwords table not found")
+            print("❌ accesslogs table not found")

@@ -133,3 +133,22 @@ class PasswordEntry(db.Model):
     def is_shared_with(self,user): # this checks if a password is shared with a specific user
         return self.shared_with.filter_by(id = user.id).first() is not None
 
+#  model for access logs
+class AccessLog(db.Model):
+
+    __tablename__ = 'accesslogs'
+
+    # link to users
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable = False)
+
+    # link to passwordentries
+    password_id = db.Column(db.Integer, db.ForeignKey('passwordentries.id'), nullable = False)
+
+    # log details
+    id = db.Column(db.Integer, primary_key = True)
+    accessed_at = db.Column(db.DateTime, default = datetime.utcnow)
+
+    user = db.relationship('User', backref = 'AccesslLogs')
+    password_entry = db.relationship('PasswordEntry',backref = 'Accesslogs')
+    
+    
