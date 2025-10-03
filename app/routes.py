@@ -1,17 +1,19 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from datetime import datetime
+from werkzeug.security import check_password_hash, generate_password_hash
 from . import db
 from .models import User, PasswordEntry, AccessLog
 
 bp = Blueprint("routes", __name__)
 
 # This is to add logs when a password is accessed
-def log_password_access(user, password_entry):
+def log_password_access(user, password_entry, action = "accessed"):
         
         access_log = AccessLog(
             user_id = user.id,
-            password_id = password_entry.id
+            password_id = password_entry.id,
+            action = action
         )
         db.session.add(access_log)
         db.session.commit()
@@ -639,3 +641,194 @@ def get_access_logs():
             "error": "Failed to retrieve logs",
             "message": "Something went wrong while getting logs. Please try again."
         }), 500
+
+# ============ FRONTEND ROUTES ============    
+
+# -------------------------
+# UI ROUTES (Day 6 Frontend)
+# -------------------------
+
+# from flask import render_template, redirect, url_for, flash, request
+# from flask_login import login_user, logout_user, login_required, current_user
+# from .models import User, PasswordEntry, AccessLog
+# from . import db
+
+
+# UI: Register
+@bp.route("/register-ui", methods=["GET", "POST"])
+def register_ui():
+    if request.method == "POST":
+        username = request.form.get("username")
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        if User.query.filter((User.username == username) | (User.email == email)).first():
+            flash("Username or email already taken.", "danger")
+            return redirect(url_for("routes.register_ui"))
+
+        new_user = User(username=username, email=email)
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.commit()
+
+        flash("Registration successful! Please log in.", "success")
+        return redirect(url_for("routes.login_ui"))
+
+    return render_template("register.html")
+
+
+# UI: Login
+@bp.route("/login-ui", methods=["GET", "POST"])
+def login_ui():
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        user = User.query.filter_by(email=email).first()
+        if user and user.check_password(password):
+            login_user(user)
+            flash("Login successful!", "success")
+            return redirect(url_for("routes.dashboard"))
+        else:
+            flash("Invalid email or password.", "danger")
+
+    return render_template("login.html")
+
+
+# UI: Logout
+@bp.route("/logout-ui")
+@login_required
+def logout_ui():
+    logout_user()
+    flash("You have been logged out.", "info")
+    return redirect(url_for("routes.login_ui"))
+
+
+# UI: Dashboard
+@bp.route("/dashboard")
+@login_required
+def dashboard():
+    passwords = PasswordEntry.query.filter_by(user_id=current_user.id).all()
+    return render_template("dashboard.html", passwords=passwords)
+
+
+# UI: Add Password
+@bp.route("/add-password-ui", methods=["GET", "POST"])
+@login_required
+def add_password_ui():
+    if request.method == "POST":
+        service_name = request.form.get("service_name")
+        login_name = request.form.get("login_name")
+        url_value = request.form.get("url")
+        notes = request.form.get("notes")
+        plain_password = request.form.get("password")
+
+        entry = PasswordEntry(
+            user_id=current_user.id,
+            service_name=service_name,
+            login_name=login_name,
+            url=url_value,
+            notes=notes
+        )
+        entry.set_password(plain_password)
+        db.session.add(entry)
+        db.session.commit()
+
+        flash("Password saved successfully!", "success")
+        return redirect(url_for("routes.dashboard"))
+
+    return render_template("add_password.html")
+
+
+# UI: Share Password
+@bp.route("/share-password-ui", methods=["GET", "POST"])
+@login_required
+def share_password_ui():
+    if request.method == "POST":
+        password_id = request.form.get("password_id")
+        target_username = request.form.get("username")
+
+        password_entry = PasswordEntry.query.filter_by(
+            id=password_id, user_id=current_user.id
+        ).first()
+        target_user = User.query.filter_by(username=target_username).first()
+
+        if not password_entry:
+            flash("Password not found or not yours to share.", "danger")
+            return redirect(url_for("routes.share_password_ui"))
+
+        if not target_user:
+            flash("Target user not found.", "danger")
+            return redirect(url_for("routes.share_password_ui"))
+
+        password_entry.shared_with.append(target_user)
+        db.session.commit()
+
+        flash(f"Password shared with {target_username}.", "success")
+        return redirect(url_for("routes.dashboard"))
+
+    # Pre-fill dropdown with current user’s passwords
+    user_passwords = PasswordEntry.query.filter_by(user_id=current_user.id).all()
+    return render_template("share_password.html", passwords=user_passwords)
+
+# UI: View Shared Passwords
+@bp.route("/shared-passwords-ui", methods=["GET"])
+@login_required
+def shared_passwords_ui():
+    try:
+        # Get passwords shared with current user (not owned by them)
+        shared_passwords = current_user.get_shared_passwords()
+        
+        return render_template("shared_passwords.html", passwords=shared_passwords)
+    
+    except Exception as e:
+        print(f"Shared passwords UI error: {str(e)}")
+        flash("Failed to retrieve shared passwords.", "danger")
+        return redirect(url_for("routes.dashboard"))
+
+# UI: View Access Logs
+@bp.route("/logs-ui")
+@login_required
+def logs_ui():
+    logs = AccessLog.query.join(PasswordEntry).filter(
+        (PasswordEntry.user_id == current_user.id) | (AccessLog.user_id == current_user.id)
+    ).all()
+    return render_template("logs.html", logs=logs)
+
+# UI: View a password entry (decrypt + log)
+@bp.route("/passwords/<int:entry_id>/view-ui")
+@login_required
+def view_password_ui(entry_id):
+    try:
+        password_entry = PasswordEntry.query.get(entry_id)
+
+        if not password_entry or not password_entry.is_accessible_by(current_user):
+            flash("You do not have access to this password.", "danger")
+            return redirect(url_for("routes.dashboard"))
+
+        # Decrypt password
+        actual_password = password_entry.get_password()
+
+        # Log access
+        log_password_access(current_user, password_entry, action="viewed")
+
+        return render_template("view_password.html", password_entry=password_entry, actual_password=actual_password)
+
+    except Exception as e:
+        print(f"View password UI error: {str(e)}")
+        flash("Something went wrong while retrieving the password.", "danger")
+        return redirect(url_for("routes.dashboard"))
+
+# ui copy passwords
+@bp.route("/copy_password/<int:password_id>", methods=["POST"])
+@login_required
+def copy_password(password_id):
+    password_entry = PasswordEntry.query.get_or_404(password_id)
+
+    if not password_entry.is_accessible_by(current_user):
+        return {"error": "Unauthorized"}, 403
+
+    # Log a copy event
+    log_password_access(current_user, password_entry, action="copied")
+
+    return {"status": "success"}

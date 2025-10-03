@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Dashboard</h2>
+<a href="{{ url_for('routes.add_password_ui') }}" class="btn btn-primary mb-3">Add New Password</a>
+
+{% if passwords %}
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Service</th>
+            <th>Login</th>
+            <th>URL</th>
+            <th>Password</th>
+            <th>Notes</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in passwords %}
+        <tr>
+            <td>{{ p.service_name }}</td>
+            <td>{{ p.login_name }}</td>
+            <td><a href="{{ p.url }}" target="_blank">{{ p.url }}</a></td>
+            <td><a href="{{ url_for('routes.view_password_ui', entry_id=p.id) }}" class="btn btn-sm btn-info">View</a></td>
+            <td>{{ p.notes }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No passwords saved yet.</p>
+{% endif %}
+{% endblock %}

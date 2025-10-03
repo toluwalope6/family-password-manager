@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Family Password Manager - Secure Password Sharing{% endblock %}
+
+{% block content %}
+<div class="row align-items-center min-vh-75">
+    <div class="col-lg-6">
+        <div class="text-white">
+            <h1 class="display-4 fw-bold mb-4">
+                Family Password Manager
+            </h1>
+            <p class="lead mb-4">
+                Securely store and share passwords with your family members. 
+                Keep track of who accesses what, when they access it, and maintain 
+                complete control over your digital security.
+            </p>
+            
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex align-items-center text-white">
+                        <i class="fas fa-shield-alt fa-2x text-warning me-3"></i>
+                        <div>
+                            <h5 class="mb-1">Encrypted Storage</h5>
+                            <small class="opacity-75">AES encryption for all passwords</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex align-items-center text-white">
+                        <i class="fas fa-users fa-2x text-success me-3"></i>
+                        <div>
+                            <h5 class="mb-1">Family Sharing</h5>
+                            <small class="opacity-75">Share with trusted family members</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex align-items-center text-white">
+                        <i class="fas fa-history fa-2x text-info me-3"></i>
+                        <div>
+                            <h5 class="mb-1">Access Logs</h5>
+                            <small class="opacity-75">Track who accessed what and when</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex align-items-center text-white">
+                        <i class="fas fa-user-shield fa-2x text-primary me-3"></i>
+                        <div>
+                            <h5 class="mb-1">Role-Based Access</h5>
+                            <small class="opacity-75">Parent controls and child accounts</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex">
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg me-md-2">
+                    <i class="fas fa-user-plus me-2"></i>Get Started
+                </a>
+                <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg">
+                    <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <i class="fas fa-family fa-4x text-primary mb-3"></i>
+                    <h3 class="text-primary">Why Choose Our Solution?</h3>
+                </div>
+            </div>    
+        </div>
+    </div>       

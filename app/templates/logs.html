@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Access Logs</h2>
+{% if logs %}
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Password ID</th>
+            <th>Service</th>
+            <th>Action</th>
+            <th>Accessed By</th>
+            <th>Accessed At</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.password_id }}</td>
+            <td>{{ log.password_entry.service_name }}</td>
+            <td>{{ log.action|capitalize }}</td>
+            <td>{{ log.user.username }}</td>
+            <td>{{ log.accessed_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No logs available.</p>
+{% endif %}
+
+<a href="{{ url_for('routes.dashboard') }}" class="btn btn-primary mt-3">Back to Dashboard</a>
+{% endblock %}

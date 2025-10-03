@@ -133,6 +133,15 @@ class PasswordEntry(db.Model):
     def is_shared_with(self,user): # this checks if a password is shared with a specific user
         return self.shared_with.filter_by(id = user.id).first() is not None
 
+    def log_password_access(user, password_entry, action="viewed"):
+        log = AccessLog(
+            user_id=user.id,
+            password_id=password_entry.id,
+            action=action
+        )
+        db.session.add(log)
+        db.session.commit()
+
 #  model for access logs
 class AccessLog(db.Model):
 
@@ -147,6 +156,7 @@ class AccessLog(db.Model):
     # log details
     id = db.Column(db.Integer, primary_key = True)
     accessed_at = db.Column(db.DateTime, default = datetime.utcnow)
+    action = db.Column(db.String(50), default = "viewed")
 
     user = db.relationship('User', backref = 'AccesslLogs')
     password_entry = db.relationship('PasswordEntry',backref = 'Accesslogs')
