@@ -7,7 +7,7 @@ This project emphasizes both on software engineering best practices and cybersec
 ## Preview:
 
 ## Login Page  
-#<img width="1889" height="777" alt="Screenshot 2025-10-07 162525" src="https://github.com/user-attachments/assets/7625de6f-e87b-4f21-bf7b-6a422f1fcc26" />
+<img width="1889" height="777" alt="Screenshot 2025-10-07 162525" src="https://github.com/user-attachments/assets/7625de6f-e87b-4f21-bf7b-6a422f1fcc26" />
 
 ### Dashboard  
 <img width="1919" height="778" alt="Screenshot 2025-10-07 162959" src="https://github.com/user-attachments/assets/01ba5211-f53b-4ad4-a9f4-8e49e1e0b70a" />
@@ -66,8 +66,6 @@ cd family-password-manager
 2. Create a virtual environment:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-
-![Uploading Screenshot 2025-10-07 141715.png…]()
 
 3. Install dependencies
 pip install -r requirements.txt
